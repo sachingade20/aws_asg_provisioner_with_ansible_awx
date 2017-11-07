@@ -1,0 +1,84 @@
+version: '3'
+services:
+  postgres:
+    image: "postgres:9.6"
+    environment:
+      POSTGRES_USER: awx
+      POSTGRES_PASSWORD: awxpass
+      POSTGRES_DB: awx
+    ports:
+      - "8434:5432"
+
+  rabbitmq:
+    image: "rabbitmq:3"
+    environment:
+      RABBITMQ_DEFAULT_VHOST: awx
+
+  memcached:
+    image: "memcached:alpine"
+
+  awx_web:
+    image: "sachinpgade/awx_web:latest"
+    links:
+      - rabbitmq
+      - memcached
+      - postgres
+    ports:
+      - "8889:8052"
+    hostname: awxweb
+    user: root
+    environment:
+      SECRET_KEY: aabbcc
+      DATABASE_USER: awx
+      DATABASE_PASSWORD: awxpass
+      DATABASE_NAME: awx
+      DATABASE_PORT: 5432
+      DATABASE_HOST: postgres
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_VHOST: awx
+      MEMCACHED_HOST: memcached
+      MEMCACHED_PORT: 11211
+
+  awx_worker:
+    image: "sachinpgade/awx_worker:latest"
+    links:
+      - rabbitmq
+      - memcached
+      - awx_web:awxweb
+      - postgres
+    hostname: awx
+    user: root
+    environment:
+      SECRET_KEY: aabbcc
+      DATABASE_USER: awx
+      DATABASE_PASSWORD: awxpass
+      DATABASE_NAME: awx
+      DATABASE_PORT: 5432
+      DATABASE_HOST: postgres
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_VHOST: awx
+      MEMCACHED_HOST: memcached
+      MEMCACHED_PORT: 11211
+
+  tower_sync:
+    image: "sachinpgade/tower_sync:latest"
+    links:
+     - awx_web:awxweb
+    hostname: towersync
+    user: root
+    environment:
+      AWS_SQS_QUEUE_NAME: "aws-autoscaling-sqs"
+      AWS_REGION: us-east-1
+      ORGANIZATION: 1
+      TOWER_USER_NAME: admin
+      TOWER_PASSWORD: password
+      TOWER_VERIFY_SSL: "False"
+      TOWER_HOST: http://awxweb
+      AWS_SECRET_ACCESS_KEY: "XXXXXX"
+      AWS_ACCESS_KEY_ID: "XXXXXXX"
